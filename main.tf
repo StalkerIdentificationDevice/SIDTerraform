@@ -26,29 +26,12 @@ module "lambda_function" {
   }
 }
 
-module "api_gateway" {
-  source = "terraform-aws-modules/apigateway-v2/aws"
+resource "aws_s3_bucket" "photo_bucket" {
+  bucket = "sid-user-public-photo-data"
+}
 
-  name          = "process_images_gateway"
-  description   = "HTTP API Gateway to access lambda function"
-  protocol_type = "HTTP"
-
-  cors_configuration = {
-    allow_headers = ["content-type", "x-amz-date", "authorization", "x-api-key", "x-amz-security-token", "x-amz-user-agent"]
-    allow_methods = ["*"]
-    allow_origins = ["*"]
-  }
-
-  # Routes and integrations
-  integrations = {
-    "POST /" = {
-      lambda_arn             = module.lambda_function.lambda_function_invoke_arn
-      payload_format_version = "2.0"
-      timeout_milliseconds   = 12000
-    }
-  }
-
-  tags = {
-    Name = "process_images_gateway"
-  }
+resource "aws_s3_access_point" "photo_bucket" {
+  bucket = aws_s3_bucket.photo_bucket.id
+  name   = "sid-user-public-photo-data"
+  policy = ""
 }
