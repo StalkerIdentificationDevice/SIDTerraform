@@ -71,6 +71,21 @@ resource "aws_iam_role_policy" "rekognition-lambda-policy" {
   })
 }
 
+resource "aws_iam_role_policy" "s3-lambda-policy" {
+  name = "s3_lambda_policy"
+  role = aws_iam_role.iam_for_lambda.id
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement" : [
+      {
+        "Effect" : "Allow",
+        "Action" : ["s3:*"],
+        "Resource" : "${aws_s3_bucket.bucket.arn}/*"
+      }
+    ]
+  })
+}
+
 resource "aws_lambda_permission" "allow_bucket" {
   statement_id  = "AllowExecutionFromS3Bucket"
   action        = "lambda:InvokeFunction"
@@ -79,12 +94,19 @@ resource "aws_lambda_permission" "allow_bucket" {
   source_arn    = aws_s3_bucket.bucket.arn
 }
 
+data "archive_file" "process_images" {
+  type        = "zip"
+  source_file = "lambda/process_images.py"
+  output_path = "lambda.zip"
+}
+
 resource "aws_lambda_function" "func" {
-  filename      = "lambda.zip"
-  function_name = "process_images"
-  role          = aws_iam_role.iam_for_lambda.arn
-  handler       = "process_images.lambda_handler"
-  runtime       = "python3.10"
+  filename         = "lambda.zip"
+  function_name    = "process_images"
+  role             = aws_iam_role.iam_for_lambda.arn
+  handler          = "process_images.lambda_handler"
+  runtime          = "python3.10"
+  source_code_hash = data.archive_file.process_images.output_base64sha256
 }
 
 resource "aws_s3_bucket" "bucket" {

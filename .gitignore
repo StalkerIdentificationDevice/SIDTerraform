@@ -3,3 +3,4 @@
 .terraform.lock.hcl
 *.zip
 builds/
+.DS_Store
