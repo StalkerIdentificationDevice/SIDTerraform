@@ -38,9 +38,9 @@ def detect_faces(bucket, key):
             'Faces': face_count_map,
         })
     else:
-        face_count_map = db_response['Faces']
+        face_count_map = dict(db_response['Faces'])
         for face in face_list:
-            if face_count_map[face] is not None:
+            if face_count_map.get(face) is not None:
                 face_count_map[face] += 1 
             else:
                 face_count_map[face] = 1
