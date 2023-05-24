@@ -34,6 +34,7 @@ def detect_faces(bucket, key):
         search_results = rekognition.search_faces(CollectionId=folder, FaceId=face_id, MaxFaces=1).get('FaceMatches')
         if search_results is not None and len(search_results) is 1:
             updated_face_list.append(search_results[0].get('Face').get('FaceId'))
+            rekognition.delete_faces(CollectionId=folder, FaceIds=[face_id])
         else:
             updated_face_list.append(face_id)
     
