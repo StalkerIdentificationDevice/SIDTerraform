@@ -28,18 +28,27 @@ def detect_faces(bucket, key):
     print("Index faces response:", str(index_response))
 
     face_list = [face['Face']['FaceId'] for face in index_response['FaceRecords']]
+    
+    updated_face_list = []
+    for face_id in face_list:
+        search_results = rekognition.search_faces(CollectionId=folder, FaceId=face_id, MaxFaces=1).get('FaceMatches')
+        if search_results is not None and len(search_results) is 1:
+            updated_face_list.append(search_results[0].get('Face').get('FaceId'))
+        else:
+            updated_face_list.append(face_id)
+    
     db_response = get_faces(folder)
     
     print("DB response: ", str(db_response))
     if db_response is None:
-        face_count_map = {face: 1 for face in face_list}
+        face_count_map = {face: 1 for face in updated_face_list}
         table.put_item(Item={
             'User': folder,
             'Faces': face_count_map,
         })
     else:
         face_count_map = dict(db_response['Faces'])
-        for face in face_list:
+        for face in updated_face_list:
             if face_count_map.get(face) is not None:
                 face_count_map[face] += 1 
             else:
