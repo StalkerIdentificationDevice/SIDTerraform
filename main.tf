@@ -19,7 +19,8 @@ module "storage" {
   lambda_function_arn = module.lambda.lambda_function_arn
   db_table_info = {
     name          = "user-tracking",
-    partition_key = "User"
+    partition_key = "UserId",
+    sort_key      = "FaceId"
   }
   bucket_prefix = "sid-user-public-photo-data"
 }
@@ -42,4 +43,5 @@ module "connect_services" {
 
   table_arn  = module.storage.table_arn
   bucket_arn = module.storage.bucket_arn
+  sns_topic_arn = module.messaging.sns_topic_arn
 }

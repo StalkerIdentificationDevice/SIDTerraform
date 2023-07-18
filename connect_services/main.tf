@@ -43,6 +43,21 @@ resource "aws_iam_role_policy" "s3-lambda-policy" {
   })
 }
 
+resource "aws_iam_role_policy" "sns-lambda-policy" {
+  name = "sns_lambda_policy"
+  role = var.lambda_iam_id
+  policy = jsonencode({
+    "Version" : "2012-10-17",
+    "Statement": [
+      {
+        "Effect" : "Allow",
+        "Action" : ["sns:*"],
+        "Resource" : "${var.sns_topic_arn}"
+      }
+    ]
+  })
+}
+
 resource "aws_lambda_permission" "allow_bucket" {
   statement_id  = "AllowExecutionFromS3Bucket"
   action        = "lambda:InvokeFunction"

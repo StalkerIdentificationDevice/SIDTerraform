@@ -1,9 +1,14 @@
 resource "aws_dynamodb_table" "user-tracking" {
   name         = var.db_table_info["name"]
   hash_key     = var.db_table_info["partition_key"]
+  range_key    = var.db_table_info["sort_key"]
   billing_mode = "PAY_PER_REQUEST"
   attribute {
     name = var.db_table_info["partition_key"]
+    type = "S"
+  }
+  attribute {
+    name = var.db_table_info["sort_key"]
     type = "S"
   }
   point_in_time_recovery { enabled = false }
