@@ -2,6 +2,7 @@ import boto3, urllib.parse
 from datetime import datetime
 import io
 from PIL import Image, ImageDraw
+import json
 
 rekognition = boto3.client('rekognition', 'us-east-1')
 table = boto3.resource('dynamodb').Table('user-tracking')
@@ -64,39 +65,55 @@ def process_face(user_id, face_id, face_detail, timestamp, device_token, bucket,
             difference_in_seconds = (current_timestamp - fifth_last_timestamp).total_seconds()
             # If this face has been seen 5 times in last 30 minutes
             if difference_in_seconds < 1800:
-                send_notification(device_token, face_detail, "This face has been seen 5 times within the last 30 minutes", bucket, key)
+                send_notification(device_token, face_detail, "Safety Alert", "A face has been seen behind you 5 times within the last 30 minutes", bucket, key)
   
                     
-def send_notification(device_token, face_detail, subject, bucket, key):
+def send_notification(device_token, face_detail, title, body, bucket, key):
     arn = get_endpoint_arn(device_token)
-    message = get_image_bytes(bucket, key, face_detail)
-    sns.publish(TargetArn=arn, Subject=subject, Message=message)
+    message = {
+    "aps": {
+        "alert": {
+            "title": title,
+            "body": body
+        },
+        "badge": 1,
+        "sound": "default"
+    },
+    "data": {
+        "message_id": "12345",
+        "sender_id": "67890"
+    }
+}
+    # message = message + get_image_url(bucket, key, face_detail)
+    sns.publish(TargetArn=arn, Message=json.dumps(message), MessageStructure='json')
 
 
-def get_image_bytes(bucket, key, face_detail):
-    s3_response = s3.get_object(Bucket=bucket, Key=key)
-    stream = io.BytesIO(s3_response['Body'].read())
-    image = Image.open(stream)
+# def get_image_url(bucket, key, face_detail):
+#     s3_response = s3.get_object(Bucket=bucket, Key=key)
+#     stream = io.BytesIO(s3_response['Body'].read())
+#     image = Image.open(stream)
     
-    img_width, img_height = image.size
-    draw = ImageDraw.Draw(image)
+#     img_width, img_height = image.size
+#     draw = ImageDraw.Draw(image)
     
-    box = face_detail['BoundingBox']
-    left = img_width * box['Left']
-    top = img_height * box['Top']
-    width = img_width * box['Width']
-    height = img_height * box['Height']
+#     box = face_detail['BoundingBox']
+#     left = img_width * box['Left']
+#     top = img_height * box['Top']
+#     width = img_width * box['Width']
+#     height = img_height * box['Height']
 
-    points = (
-        (left, top),
-        (left + width, top),
-        (left + width, top + height),
-        (left, top + height),
-        (left, top)
+#     points = (
+#         (left, top),
+#         (left + width, top),
+#         (left + width, top + height),
+#         (left, top + height),
+#         (left, top)
 
-    )
-    draw.line(points, fill='#00d400', width=2)
-    return image.tobytes()
+#     )
+#     draw.line(points, fill='#00d400', width=2)
+#     colored_picture = s3.put_object()
+#     s3.generate_presigned_url('get_object')
+#     return image.tobytes()
 
 
 def get_endpoint_arn(device_token):
