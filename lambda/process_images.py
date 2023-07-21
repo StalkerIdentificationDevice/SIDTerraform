@@ -1,7 +1,5 @@
 import boto3, urllib.parse
 from datetime import datetime
-import io
-from PIL import Image, ImageDraw
 import json
 
 rekognition = boto3.client('rekognition', 'us-east-1')
