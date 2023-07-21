@@ -71,21 +71,21 @@ def process_face(user_id, face_id, face_detail, timestamp, device_token, bucket,
 def send_notification(device_token, face_detail, title, body, bucket, key):
     arn = get_endpoint_arn(device_token)
     message = {
-    "aps": {
-        "alert": {
-            "title": title,
-            "body": body
+        "aps": {
+            "alert": {
+                "title": title,
+                "body": body
+            },
+            "badge": 1,
+            "sound": "default"
         },
-        "badge": 1,
-        "sound": "default"
-    },
-    "data": {
-        "message_id": "12345",
-        "sender_id": "67890"
+        "data": {
+            "message_id": "12345",
+            "sender_id": "67890"
+        }
     }
-}
-    # message = message + get_image_url(bucket, key, face_detail)
     sns.publish(TargetArn=arn, Message=json.dumps(message), MessageStructure='json')
+    # message = message + get_image_url(bucket, key, face_detail)
 
 
 # def get_image_url(bucket, key, face_detail):
