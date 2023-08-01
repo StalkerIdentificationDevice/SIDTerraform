@@ -13,7 +13,3 @@ variable "lambda_function_arn" {
 variable "lambda_iam_id" {
   type = string
 }
-
-variable "sns_topic_arn" {
-  type = string
-}

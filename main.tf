@@ -29,12 +29,6 @@ module "lambda" {
   source = "./lambda"
 }
 
-module "messaging" {
-  source = "./messaging"
-
-  sns_app_name = "S.I.D"
-}
-
 module "connect_services" {
   source = "./connect_services"
 
@@ -43,5 +37,4 @@ module "connect_services" {
 
   table_arn  = module.storage.table_arn
   bucket_arn = module.storage.bucket_arn
-  sns_topic_arn = module.messaging.sns_topic_arn
 }

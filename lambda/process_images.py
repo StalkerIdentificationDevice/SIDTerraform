@@ -1,13 +1,13 @@
 import boto3, urllib.parse
 from datetime import datetime
-import json
+from exponent_server_sdk import (
+    PushClient,
+    PushMessage,
+)
 
 rekognition = boto3.client('rekognition', 'us-east-1')
 table = boto3.resource('dynamodb').Table('user-tracking')
 s3 = boto3.client('s3', 'us-east-1')
-sns = boto3.client('sns')
-
-platform_application_arn = 'arn:aws:sns:us-east-1:837111542380:app/APNS/S.I.D'
 
 
 def get_faces(user_id, face_id):
@@ -33,8 +33,8 @@ def detect_and_process_faces(bucket, user_id, key, timestamp, device_token):
     for face in index_response['FaceRecords']:
         search_results = rekognition.search_faces(CollectionId=user_id, FaceId=face['Face']['FaceId'], MaxFaces=1).get('FaceMatches')
         if search_results is not None and len(search_results) == 1:
-            process_face(user_id, search_results[0].get('Face')['FaceId'], face['FaceDetail'], timestamp, device_token, bucket, key)
             rekognition.delete_faces(CollectionId=user_id, FaceIds=[face['Face']['FaceId']])
+            process_face(user_id, search_results[0].get('Face')['FaceId'], face['FaceDetail'], timestamp, device_token, bucket, key)
         else:
             process_face(user_id, face['Face']['FaceId'], face['FaceDetail'], timestamp, device_token, bucket, key)
 
@@ -63,64 +63,18 @@ def process_face(user_id, face_id, face_detail, timestamp, device_token, bucket,
             difference_in_seconds = (current_timestamp - fifth_last_timestamp).total_seconds()
             # If this face has been seen 5 times in last 30 minutes
             if difference_in_seconds < 1800:
-                send_notification(device_token, face_detail, "Safety Alert", "A face has been seen behind you 5 times within the last 30 minutes", bucket, key)
+                send_push_message(device_token, "A face has been seen behind you 5 times within the last 30 minutes")
   
-                    
-def send_notification(device_token, face_detail, title, body, bucket, key):
-    arn = get_endpoint_arn(device_token)
-    message = {
-        "aps": {
-            "alert": {
-                "title": title,
-                "body": body
-            },
-            "badge": 1,
-            "sound": "default"
-        },
-        "data": {
-            "message_id": "12345",
-            "sender_id": "67890"
-        }
-    }
-    sns.publish(TargetArn=arn, Message=json.dumps(message), MessageStructure='json')
-    # message = message + get_image_url(bucket, key, face_detail)
 
-
-# def get_image_url(bucket, key, face_detail):
-#     s3_response = s3.get_object(Bucket=bucket, Key=key)
-#     stream = io.BytesIO(s3_response['Body'].read())
-#     image = Image.open(stream)
-    
-#     img_width, img_height = image.size
-#     draw = ImageDraw.Draw(image)
-    
-#     box = face_detail['BoundingBox']
-#     left = img_width * box['Left']
-#     top = img_height * box['Top']
-#     width = img_width * box['Width']
-#     height = img_height * box['Height']
-
-#     points = (
-#         (left, top),
-#         (left + width, top),
-#         (left + width, top + height),
-#         (left, top + height),
-#         (left, top)
-
-#     )
-#     draw.line(points, fill='#00d400', width=2)
-#     colored_picture = s3.put_object()
-#     s3.generate_presigned_url('get_object')
-#     return image.tobytes()
-
-
-def get_endpoint_arn(device_token):
-    endpoints_obj = sns.list_endpoints_by_platform_application(platform_application_arn)
-    endpoints_list = endpoints_obj['Endpoints']
-    for endpoint in endpoints_list:
-        if endpoint['Attributes']['Token'] is device_token:
-            return endpoint['EndpointArn']
-    return sns.create_platform_endpoint(PlatformApplicationArn=platform_application_arn, Token=device_token)['EndpointArn']
+def send_push_message(token, message, extra=None):
+    try:
+        response = PushClient().publish(
+            PushMessage(to=token,
+                        body=message,
+                        data=extra))
+        print(response)
+    except Exception as e:
+        print(e)
 
 
 def lambda_handler(event, context):
@@ -135,3 +89,44 @@ def lambda_handler(event, context):
     except Exception as e:
         print(e)
         raise e
+    
+if __name__ == '__main__':
+    event = {
+    "Records": [
+        {
+        "eventVersion": "2.0",
+        "eventSource": "aws:s3",
+        "awsRegion": "us-east-1",
+        "eventTime": "1970-01-01T00:00:00.000Z",
+        "eventName": "ObjectCreated:Put",
+        "userIdentity": {
+            "principalId": "EXAMPLE"
+        },
+        "requestParameters": {
+            "sourceIPAddress": "127.0.0.1"
+        },
+        "responseElements": {
+            "x-amz-request-id": "EXAMPLE123456789",
+            "x-amz-id-2": "EXAMPLE123/5678abcdefghijklambdaisawesome/mnopqrstuvwxyzABCDEFGH"
+        },
+        "s3": {
+            "s3SchemaVersion": "1.0",
+            "configurationId": "testConfigRule",
+            "bucket": {
+            "name": "sid-user-public-photo-data20230721034631063100000001",
+            "ownerIdentity": {
+                "principalId": "EXAMPLE"
+            },
+            "arn": "arn:aws:s3:::sid-user-public-photo-data20230721034631063100000001"
+            },
+            "object": {
+            "key": "34883468-6081-70c6-3617-fb90ea22dc33%2FExponentPushToken[ymOqA3JhS0m6ypCAjQgSaI]%2F20230730T205903.jpg",
+            "size": 1024,
+            "eTag": "0123456789abcdef0123456789abcdef",
+            "sequencer": "0A1B2C3D4E5F678901"
+            }
+        }
+        }
+    ]
+    }
+    lambda_handler(event, None)
