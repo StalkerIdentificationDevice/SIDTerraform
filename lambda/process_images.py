@@ -13,6 +13,16 @@ s3 = boto3.client('s3', 'us-east-1')
 def get_faces(user_id, face_id):
     return table.get_item(Key={'UserId': user_id, 'FaceId': face_id}).get('Item')
 
+def get_facial_hair_description(face_detail):
+    facial_hair_description = 'no noticable facial hair'
+    if face_detail['Beard']['Value'] and face_detail['Mustache']['Value']:
+        facial_hair_description = 'a beard and mustache'
+    elif face_detail['Beard']['Value']:
+        facial_hair_description = 'a beard'
+    elif face_detail['Mustache']['Value']:
+        facial_hair_description = 'a mustache'
+    return facial_hair_description
+
 
 def detect_and_process_faces(bucket, user_id, key, timestamp, device_token):
     print("Bucket: " + bucket)
@@ -43,10 +53,16 @@ def process_face(user_id, face_id, face_detail, timestamp, device_token, bucket,
     db_response = get_faces(user_id, face_id)    
     print("DB response: ", str(db_response))
     if db_response is None:
+        facial_hair_description = get_facial_hair_description(face_detail)
         table.put_item(Item={
             'UserId': user_id,
             'FaceId': face_id,
             "Timestamps": [timestamp],
+            "Description": 'A {} between {} and {} with {}'.format(
+                face_detail['Gender']['Value'], 
+                face_detail['AgeRange']['Low'], 
+                face_detail['AgeRange']['High'],
+                facial_hair_description)
         })
     else:
         timestamp_list = list(db_response['Timestamps'])
@@ -61,9 +77,8 @@ def process_face(user_id, face_id, face_detail, timestamp, device_token, bucket,
             fifth_last_timestamp = datetime.strptime(timestamp_list[-5], '%Y%m%dT%H%M%S')
             current_timestamp = datetime.strptime(timestamp, '%Y%m%dT%H%M%S')
             difference_in_seconds = (current_timestamp - fifth_last_timestamp).total_seconds()
-            # If this face has been seen 5 times in last 30 minutes
             if difference_in_seconds < 1800:
-                send_push_message(device_token, "A face has been seen behind you 5 times within the last 30 minutes")
+                send_push_message(device_token, "{} has been seen behind you 10 times within the last 30 minutes".format(db_response['Description']))
   
 
 def send_push_message(token, message, extra=None):
