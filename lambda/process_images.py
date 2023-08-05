@@ -13,11 +13,11 @@ s3 = boto3.client('s3', 'us-east-1')
 def get_faces(user_id, face_id):
     return table.get_item(Key={'UserId': user_id, 'FaceId': face_id}).get('Item')
 
-def get_facial_hair_description(face_detail):
+def get_facial_hair_description(face_detail: dict):
     facial_hair_description = 'no noticable facial hair'
     if face_detail['Beard']['Value'] and face_detail['Mustache']['Value']:
         facial_hair_description = 'a beard and mustache'
-    elif face_detail['Beard']['Value']:
+    elif face_detail['Beard']['Value'] :
         facial_hair_description = 'a beard'
     elif face_detail['Mustache']['Value']:
         facial_hair_description = 'a mustache'
@@ -35,7 +35,8 @@ def detect_and_process_faces(bucket, user_id, key, timestamp, device_token):
     
     index_response = rekognition.index_faces(
         Image={"S3Object": {"Bucket": bucket, "Name": key}},
-        CollectionId=user_id
+        CollectionId=user_id,
+        DetectionAttributes=['GENDER', 'BEARD', 'AGE_RANGE', 'MUSTACHE']
     )
     
     print("Index faces response:", str(index_response))
@@ -135,7 +136,7 @@ if __name__ == '__main__':
             "arn": "arn:aws:s3:::sid-user-public-photo-data20230721034631063100000001"
             },
             "object": {
-            "key": "34883468-6081-70c6-3617-fb90ea22dc33%2FExponentPushToken[ymOqA3JhS0m6ypCAjQgSaI]%2F20230730T205903.jpg",
+            "key": "34883468-6081-70c6-3617-fb90ea22dc33%2FExponentPushToken[ymOqA3JhS0m6ypCAjQgSaI]%2F20230805T123621.jpg",
             "size": 1024,
             "eTag": "0123456789abcdef0123456789abcdef",
             "sequencer": "0A1B2C3D4E5F678901"
