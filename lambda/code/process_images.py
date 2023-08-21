@@ -74,12 +74,16 @@ def process_face(user_id, face_id, face_detail, timestamp, device_token, bucket,
             ExpressionAttributeValues={
                 ':times': timestamp_list
             })
-        if len(timestamp_list) >= 5:
+        num_sightings = len(timestamp_list)
+        if num_sightings >= 5:
             fifth_last_timestamp = datetime.strptime(timestamp_list[-5], '%Y%m%dT%H%M%S')
             current_timestamp = datetime.strptime(timestamp, '%Y%m%dT%H%M%S')
             difference_in_seconds = (current_timestamp - fifth_last_timestamp).total_seconds()
             if difference_in_seconds < 1800:
-                send_push_message(device_token, "{} has been seen behind you 10 times within the last 30 minutes".format(db_response['Description']))
+                send_push_message(device_token, "Possible Follower Alert", {
+                    'description': db_response['Description'],
+                    'num_sightings': num_sightings
+                })
   
 
 def send_push_message(token, message, extra=None):
@@ -97,9 +101,11 @@ def lambda_handler(event, context):
     data = event['Records'][0]['s3']
     bucket = data['bucket']['name']
     key = urllib.parse.unquote_plus(data['object']['key'])
-    user_id = str(key).split('/')[0]
-    device_token = str(key).split('/')[1]
-    timestamp = str(key).split('/')[2].removesuffix('.jpg')
+    key_path_only = str(key).removesuffix('.jpg')
+    key_sections = key_path_only.split('/')
+    user_id = key_sections[0]
+    device_token = key_sections[1]
+    timestamp = key_sections[2]
     try:
         detect_and_process_faces(bucket, user_id, key, timestamp, device_token)
     except Exception as e:
